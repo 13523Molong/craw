@@ -39,6 +39,35 @@ time.sleep(1)
 
 # 关闭浏览器
 browser.close()
+
+
+#最新版本驱动示例
+
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+
+# 设置 Chrome 选项
+options = Options()
+options.binary_location = r'D:\chrome_driver\chrome-win64\chrome-win64\chrome.exe'
+
+# 初始化 WebDriver，自动管理 ChromeDriver
+browser = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+browser.get('https://bilibili.com')
+
+# 等待元素加载
+WebDriverWait(browser, 10).until(
+    EC.presence_of_element_located((By.CLASS_NAME, 'nav-search-input'))
+)
+
+print("元素加载成功！")
+
+
+
 ```
 其中 **find_element_by_id** 方法经常用到，它根据元素的 ID 来查找页面某个元素。类似的方法还有 **find_element_by_name、find_element_by_class_name、find_element_by_css_selector、find_element_by_xpath** 等，都是用于定位页面元素的。另外，也可以同时定位多个元素，例如 **find_elements_by_name、find_elements_by_class_name** 等，就是把 **find_element** 换成 **find_elements，**具体的 API 可以参考 Selenium 中文翻译文档中的 **查找元素** 一节。
 
