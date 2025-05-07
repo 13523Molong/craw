@@ -65,9 +65,6 @@ WebDriverWait(browser, 10).until(
 )
 
 print("元素加载成功！")
-
-
-
 ```
 其中 **find_element_by_id** 方法经常用到，它根据元素的 ID 来查找页面某个元素。类似的方法还有 **find_element_by_name、find_element_by_class_name、find_element_by_css_selector、find_element_by_xpath** 等，都是用于定位页面元素的。另外，也可以同时定位多个元素，例如 **find_elements_by_name、find_elements_by_class_name** 等，就是把 **find_element** 换成 **find_elements，**具体的 API 可以参考 Selenium 中文翻译文档中的 **查找元素** 一节。
 
@@ -137,7 +134,46 @@ for result in results:
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
+# 通常我们习惯将其简写成EC，即:
+# from selenium.webdriver.support import expected_conditions as EC
  
 WebDriverWait(browser, 10).until(
     expected_conditions.presence_of_element_located((By.ID, "kw"))
 ```
+
+这段代码的意思是，等待 10 秒直到页面上出现 ID 为 kw 的元素。**WebDriverWait** 类还有很多其他的用法，譬如 **until_not、visibility_of_element_located、text_to_be_present_in_element** 等
+
+#### 2.3窗口句柄
+当我们点击页面的某个元素时，有可能里面嵌套了新的页面，譬如点击一个链接打开了新窗口。这个时候我们如果想操作这个新打开的页面，就需要切换到对应的窗口句柄上。
+```python
+main_window = browser.current_window_handle   # 保存当前窗口句柄
+
+all_windows = browser.window_handles   # 获取所有窗口句柄
+
+for window in all_windows:   # 遍历所有窗口句柄
+    if window != main_window:   # 如果不是当前窗口句柄，则切换到该窗口
+        browser.switch_to_window(window)
+        break
+
+#点击视频跳转时的等待条件判断
+
+WebDriverWait(browser, 10).until(
+    EC.presence_of_element_located(lamba:d:len(d.window_handles)>1)
+)
+# 即有新窗口出现时完成显示等待
+new_window = [window for window in browser.window_handles if window != main_window][0]
+
+browser.switch_to_window(new_window)
+```
+## 3.iframe处理
+### 3.1 iframe定位
+
+
+
+
+
+
+
+
+
+
