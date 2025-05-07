@@ -167,6 +167,96 @@ browser.switch_to_window(new_window)
 ```
 ## 3.iframe处理
 ### 3.1 iframe定位
+有时候一个网页里面会利用iframe来嵌入另外一个页面，譬如b站的视频播放页。这个时候如果要爬取这个页面的内容，就需要先切换到 iframe 里面去切换到iframe的方式有三种
+
+#### 方式一 :通过iframe的name属性进行定位
+```python
+
+iframe = browser.find_element_by_name('bilibili_player')
+brower.switch_to_frame(iframe)
+```
+#### 方式二：通过element元素进行切换
+```python
+ele_iframe = browser.find_element(By.XAPTH, '//iframe[@id="bilibili_player"]')
+browser.switch_to_frame(ele_iframe)
+```
+#### 方式三：通过索引进行切换
+```python
+browser.switch_to_frame(0)  # 假设这里的索引是从0开始的
+browser.switch_to_frame(1)  
+```
+
+当然，切换到iframe里面，也会有需求再回到原来的HTML页面中，此时就需要用到 **switch_to_default_content()** 方法。
+```python
+browser.switch_to_default_content()
+
+#如果是切换到父级的iframe，则可以这样切换
+browser/switch_to_parent_frame()
+```
+## 4.窗口滚动
+当我们使用selenium进行页面爬取时，经常会需要滚动页面，以便爬取到更多的内容。譬如，在b站的视频播放页中，如果想获取下面的评论区的内容，就需要将页面向下滚动，必须使得元素可见之后，才能进行下一步的爬取，为此我就需要模拟窗口滚动的技术
+而我们实现滚动窗口分为两种方式:
+
+### 方式一：通过js实现滚动
+```python
+# 滚动到底部
+browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")  
+time.sleep(1)
+
+# 滚动到顶部
+browser.execute_script("window.scrollTo(0, 0);")   
+
+ #滚动到垂直位置500像素的地方
+browser.execute_script("window.scrollBy(0, 500);")  
+
+#将窗口滚动到可视区域
+#这个方法适用于绝大多数的场景，尤其是在需要精细化定位的地方
+element = driver.find_element(By.ID, "element_id")
+driver.execute_script("arguments[0].scrollIntoView();", element)  
+```
+### 方式二：使用 ActionChains 实现滚动
+
+```python
+from selenium.webdriver.common.action_chains import ActionChains
+
+actions = ActionChains(browser)
+actions.scroll_to_element(element).perform()  
+```
+这种方式适用于需要模拟用户实际操作的场景如触发某些依赖鼠标悬停或滚动的动态效果。
+### 方式三 通过键盘操作实现滚动
+例如通过发送 **PASS_DOWN** , **PASS_UP** 事件来实现滚动
+
+```python
+from selenium.webdriver.common.keys import Keys
+
+body = driver.find_element(By.TAG_NAME, 'body')
+body.send_keys(Keys.PAGE_DOWN)
+```
+ 这个方法十分快速简单，适合用在需要快速滚动的场景，但是不适合用在需要精细定位的场景。
+### 方式四 通过定位特殊元素实现滚动
+例如个别网页种存在下拉条的特别元素，当然利用元素定位符定位到之后在操作也可以实现滚动效果
+```python
+scrollable_div = driver.find_element(By.CLASS_NAME, "scrollable")
+driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", scrollable_div)
+```
+
+## 5.Cookies处理
+### 5.1获取cookies
+```python
+cookies = driver.get_cookies()
+print(cookies)
+```
+### 5.2设置cookies
+```python
+cookie_dict = {
+    'name': 'xxx',
+    'value': 'yyy'
+}
+driver.add_cookie(cookie_dict)
+```
+### 5.3
+
+
 
 
 
