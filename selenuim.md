@@ -240,21 +240,310 @@ scrollable_div = driver.find_element(By.CLASS_NAME, "scrollable")
 driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", scrollable_div)
 ```
 
-## 5.Cookies处理
-### 5.1获取cookies
+## 5.常见的Selenium反爬处理
+现在市场常见的反爬手段有很多，譬如验证码、滑动验证、登录限制等。但是Selenium对这些反爬手段的处理方式大同小异，基本上都是通过模拟用户行为来绕过这些反爬措施。譬如对于验证码和滑动验证，我们可以通过识别图片中的文字或者模拟鼠标操作来解决；对于登录。
+
+虽然Selenium自动化爬取可以解决基本99%的场景，但也会有些网页设置了Selenium反爬策略，以下说明的几种绕过这些检测的方式都是他们常见的设置反Selenium爬虫的策略
+
+### 5.1 WebDriver特征检测
+没错这个就是你每次运行webdriver时，浏览器上面提示的"你正在被自动化工具控制"
+有时候他们就会在网页上编写个JS脚本啊来抓取页面上是不是存在这条提示，有就判定你为爬虫，所以这个需要做一下处理
 ```python
-cookies = driver.get_cookies()
-print(cookies)
+
+# 同时是来检测window.navigator.webdrive这个属性是不是 true
+
+# ChromeOptions设置
+
+# 这一步是将上面的自动化控制提示关闭
+options = webdriver.ChromeOptions()
+options.add_argument('--disable-blink-features=AutomationControlled')
+options.add_experimental_option("excludeSwitches", ["enable-automation"])
+options.add_experimental_option('useAutomationExtension', False)
+
+# 修改navigator.webdriver属性
+driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+    "source": """
+    Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined
+    })
+    """
+})
+
 ```
-### 5.2设置cookies
+### 5.2 浏览器指纹检测
+通过检查Use-Agent，屏幕分辨率，或者WebGI，canvas等来判断
+处理方案:
 ```python
-cookie_dict = {
-    'name': 'xxx',
-    'value': 'yyy'
-}
-driver.add_cookie(cookie_dict)
+# 设置常见User-Agent
+options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36")
+
+# 禁用WebGL
+options.add_argument("--disable-webgl")
+options.add_argument("--disable-3d-apis")
+
+# 随机化视窗大小
+driver.set_window_size(random.randint(1000, 1920), random.randint(800, 1080))
 ```
-### 5.3
+### 5.3 行为模式检测
+其实说白了，就是你的操作不够蠢，效率太高了，装的像个人一点就好了，比如页面不要滑的那么快，定位不用过于精准什么的
+处理方案:
+```python
+from selenium.webdriver.common.action_chains import ActionChains
+import random
+import time
+
+# 模拟人类鼠标移动
+def human_like_move(driver, element):
+    action = ActionChains(driver)
+    action.move_to_element_with_offset(element, random.randint(-5,5), random.randint(-5,5))
+    action.perform()
+    time.sleep(random.uniform(0.1, 0.3))
+    element.click()
+
+# 随机等待时间
+time.sleep(random.uniform(0.5, 2.5))
+```
+
+### 5.4 无头模式检测
+无头模式检测其实很简单，就是看你的浏览器是不是在运行来着，所以你可以用一个真实的浏览器来做这件事
+```python
+# 论如何启动无头模式
+options.add_argument("--headless")
+
+#所以即便你用了无头模式也要伪装
+options.add_argument('--disable-gpu')
+options.add_argument('--no-sandbox')
+
+```
+## 6 结束语
+总的来说，Selenium是一个非常强大的工具，可以帮助我们自动化地完成各种网页操作。但是，在使用过程中也需要注意反爬虫策略的应对方法，避免被网站封禁或者限制访问。希望这篇文章能够帮助你更好地使用Selenium进行网页爬取。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
