@@ -8,6 +8,8 @@
 3.将抓取到数据写入你定义的Item数据模型中
 4.利用Item Pipeline存储抓取Item,即数据实体对象
 
+[中文文档](https://docs.scrapy.net.cn/en/latest/index.html)
+[官方文档](https://docs.scrapy.org  /en/latest/)
 ## 目录
 1. [Scrapy 简介](#scrapy-简介)
 2. [安装与配置](#安装与配置)
@@ -112,20 +114,79 @@ scrapy genspider -t basic 爬虫名称 域名
 ```python
 import scrapy
 class MySpider(scrapy.Spider):
-    name = 'my_spider'   # 唯一标识符
-    allowed_domains = ['example.com']  # 允许抓取的域名列表
+    name = 'my_spider'   # 唯一标识符 
+    allowed_domains = ['example.com']  # 允许抓取的域名列表，除了允许的域名，其他不做处理
+    
+    # 需要爬取的URL列表
     start_urls = [
         'http://www.example.com/',
         'http://www.example.com/page2',
     ]
-
+    # 解析URL响应
     def parse(self, response):
         pass
+
 ```
 - `name`：爬虫的唯一标识。
 - `allowed_domains`：允许访问的域名列表。
 - `start_urls`：起始URLs，用于开始爬取。
 - `parse()`方法：解析响应并生成新的请求或提取数据项（Item）。
 
-### 编写爬虫逻辑
-在`parse`方法中实现具体的爬取和数据处理
+例如爬取最简单百度首页网页文件，需要注意的是，百度有简单的反爬机制，所以你直接运行是爬不到页面内容的，需要去settings.py文件中设置`ROBOTSTXT_OBEY = False`来忽略robots协议。
+```python
+import scrapy
+import time
+
+class BaiduSpider(scrapy.Spider):
+    name = "baidu"  # 爬虫名称 所以我们启动爬虫就需要到指定文件目录下输入scrapy crawl baidu
+
+    allowed_domains = ["www.baidu.com"]
+    start_urls = [
+        'https://www.baidu.com/',
+    ]
+    
+    
+    
+    def parse(self, response):
+        # 使用时间戳生成唯一文件名
+        filename = f'baidu_{int(time.time())}.html'
+        
+        # 确保使用二进制写入模式
+        with open(filename, 'wb') as f:
+            f.write(response.body)
+        
+        self.log(f'Saved file {filename}')
+```
+
+
+### 元素定位
+```python
+# 定位单个元素
+response.css('h1::text').get()
+# 这里的::text是Scrapy特有的伪文本提取，其他解析库类似BS4，lxml并不存在
+
+response.xpath('//title/text()').get()
+
+# 定位多个元素
+titles = response.css('h1::text').getall()
+titles = response.xpath('//title/text()').getall()
+
+# 获取属性值
+hrefs = response.css('a::attr(href)').getall()
+hrefs = response.xpath('//a/@href').getall()
+
+# 使用正则表达式提取数据
+emails = response.re(r'[\w\.-]+@[\w\.-]+')
+
+# 使用CSS选择器或XPath选择器提取特定内容
+content = response.css('.article-body p::text').getall()
+content = response.xpath('//div[@class="article-body"]/p/text()').getall()
+
+# 使用嵌套选择器获取更深层次的数据
+nested_data = response.css('.item .price::text').getall()
+nested_data = response.xpath('//li[contains(@class, "item")]/span[contains(@class, "price")]/text()').getall()
+```
+---
+
+### 数据写入
+
