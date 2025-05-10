@@ -27,7 +27,7 @@ import time
 
 # 打开浏览器，并访问b站首页
 browser = webdriver.Chrome() //这里第一次运行时需要导入你自己浏览器驱动路径
-#这里补充一句 在selenuim4.1.2版本之后 chromedriver 驱动的execute_path参数已经启用；1，推荐使用service进行驱动
+#这里补充一句 在selenuim4.1.2版本之后 chromedriver 驱动的execute_path参数已经禁用；1，推荐使用service进行驱动
 browser.get('https://www.bilibili.com')
 time.sleep(1)
 
