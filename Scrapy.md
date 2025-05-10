@@ -11,17 +11,28 @@
 [中文文档](https://docs.scrapy.net.cn/en/latest/index.html)
 [官方文档](https://docs.scrapy.org  /en/latest/)
 ## 目录
-1. [Scrapy 简介](#scrapy-简介)
-2. [安装与配置](#安装与配置)
-3. [项目创建与结构](#项目创建与结构)
-4. [Spider 开发详解](#spider-开发详解)
-5. [选择器与数据提取](#选择器与数据提取)
-6. [Item 与数据处理](#item-与数据处理)
-7. [中间件详解](#中间件详解)
-8. [管道(Pipeline)开发](#管道pipeline开发)
-9. [部署与调度](#部署与调度)
-10. [常见问题与优化](#常见问题与优化)
-11. [最佳实践](#最佳实践)
+- [Scrapy 使用教程](#scrapy-使用教程)
+  - [目录](#目录)
+  - [Scrapy 简介](#scrapy-简介)
+  - [安装与配置](#安装与配置)
+    - [基础安装](#基础安装)
+  - [项目创建与结构](#项目创建与结构)
+    - [创建项目](#创建项目)
+    - [创建爬虫文件](#创建爬虫文件)
+    - [项目大致结构](#项目大致结构)
+  - [Spider 开发详解](#spider-开发详解)
+    - [基本结构](#基本结构)
+  - [选择器与数据提取](#选择器与数据提取)
+  - [item-与数据处理](#item-与数据处理)
+    - [item-pipeline-储存](#item-pipeline-储存)
+  - [Feed 导出](#feed-导出)
+    - [基础配置](#基础配置)
+    - [自定义导出器](#自定义导出器)
+  - [中间件详解](#中间件详解)
+    - [Downloader Middleware](#downloader-middleware)
+      - [激活Downloader Middleware](#激活downloader-middleware)
+      - [随机User-Agent](#随机user-agent)
+- [middlewares.py 示例：随机User-Agent中间件](#middlewarespy-示例随机user-agent中间件)
 
 ---
 
@@ -97,14 +108,14 @@ scrapy genspider -t basic 爬虫名称 域名
 
 ### 项目大致结构
     myproject/
-    ├── scrapy.cfg            # 部署配置文件
+    ├── scrapy.cfg            # 部署配置（环境设置/爬虫部署参数）
     └── myproject/            # 项目模块
-        ├── __init__.py
-        ├── items.py          # 数据模型定义
-        ├── middlewares.py    # 中间件
-        ├── pipelines.py      # 数据处理管道
-        ├── settings.py       # 项目设置
-        └── spiders/          # 爬虫目录
+        ├── __init__.py       # 包初始化文件
+        ├── items.py          # 数据模型定义（定义抓取数据结构）
+        ├── middlewares.py    # 中间件（请求/响应预处理）
+        ├── pipelines.py      # 数据处理管道（数据清洗/存储）
+        ├── settings.py       # 项目设置（全局配置参数）
+        └── spiders/          # 爬虫目录（具体爬虫实现）
             ├── __init__.py
             └── example.py    # 示例爬虫
 ---
@@ -124,7 +135,21 @@ class MySpider(scrapy.Spider):
     ]
     # 解析URL响应
     def parse(self, response):
-        pass
+        # 处理当前页面
+        yield {
+            'url': response.url,
+            'title': response.css('title::text').get(),
+            'content': response.css('meta[name="description"]::attr(content)').get()
+        }
+
+        # yield 可以不终止函数，继续进行爬虫操作，同时将数据返回回来
+        
+        # 跟进分页链接（示例）
+        next_page = response.css('a.next-page::attr(href)').get()
+        if next_page:
+            yield response.follow(next_page, self.parse)
+
+        # 这里返回一个Request对象，Scrapy会自动将该请求加入调度器中，等待下一次调度
 
 ```
 - `name`：爬虫的唯一标识。
@@ -159,7 +184,7 @@ class BaiduSpider(scrapy.Spider):
 ```
 
 
-### 元素定位
+## 选择器与数据提取
 ```python
 # 定位单个元素
 response.css('h1::text').get()
@@ -188,5 +213,108 @@ nested_data = response.xpath('//li[contains(@class, "item")]/span[contains(@clas
 ```
 ---
 
-### 数据写入
+## item-与数据处理
+### item-pipeline-储存
+Item Pipeline 负责处理爬取到的数据，可以进行清洗、验证以及存储等操作。一般在pipelines.py文件中进行定义
+
+```python
+# pipelines.py 示例
+from itemadapter import ItemAdapter
+import pymysql
+
+class MultiPipeline:
+    # JSON存储
+    class JsonPipeline:
+        def open_spider(self, spider):
+            self.file = open('data.json', 'w', encoding='utf-8')
+        
+        def close_spider(self, spider):
+            self.file.close()
+        
+        def process_item(self, item, spider):
+            line = json.dumps(dict(item)) + "\n"
+            self.file.write(line)
+            return item
+
+    # MySQL存储
+    class MySQLPipeline:
+        def __init__(self):
+            self.conn = pymysql.connect(
+                host='localhost',
+                user='root',
+                password='123456',
+                database='scrapy_db',
+                charset='utf8mb4'
+            )
+            
+        def process_item(self, item, spider):
+            cursor = self.conn.cursor()
+            sql = "INSERT INTO articles (title, content) VALUES (%s, %s)"
+            cursor.execute(sql, (item['title'], item['content']))
+            self.conn.commit()
+            return item
+
+# settings.py启用配置
+ITEM_PIPELINES = {
+    'myproject.pipelines.MultiPipeline.JsonPipeline': 300,
+    'myproject.pipelines.MultiPipeline.MySQLPipeline': 800,
+}
+
+# 数量级越小，执行优先度越高
+```
+## Feed 导出
+[官方描述](https://docs.scrapy.org/en/latest/topics/feed-exports.html)
+在实现爬虫时，最常需要的功能之一就是能够正确地存储抓取到的数据，
+并且通常这意味着生成一个包含抓取数据的“导出文件”（通常称为“导出 Feed”）以便其他系统使用。
+
+### 基础配置
+```python
+# settings.py
+FEED_FORMATS = ['json', 'csv']  # 支持的导出格式
+FEED_URI = 'output/%(name)s_%(time)s.%(format)s'
+# 导出文件的路径和文件名格式，其中%(name)s表示爬虫名称，%(time)s表示当前时间，%(format)s表示导出格式
+FEED_EXPORT_ENCODING = 'utf-8' # 导出文件编码
+FEED_EXPORT_BATCH_ITEM_COUNT = 1000  # 分批导出
+```
+
+### 自定义导出器
+```python
+# pipelines.py 示例：阿里云OSS存储
+import oss2
+class AliyunOSSPipeline:
+    def __init__(self):
+        auth = oss2.Auth('<ACCESS_KEY>', '<ACCESS_SECRET>')
+        self.bucket = oss2.Bucket(auth, 'http://oss-cn-hangzhou.aliyuncs.com', 'my-bucket')
+
+    def process_item(self, item, spider):
+        filename = f'data/{spider.name}/{time.time()}.json'
+        self.bucket.put_object(filename, json.dumps(dict(item)))
+        return item
+
+```
+
+## 中间件详解
+
+### Downloader Middleware
+下载器中间件是 Scrapy 请求/响应处理中的一组钩子框架。
+它是一个轻量级、低级别的系统，用于全局修改 Scrapy 的请求和响应
+
+#### 激活Downloader Middleware
+要激活下载器中间件组件，请将其添加到 DOWNLOADER_MIDDLEWARES 设置中，该设置是一个字典，其键是中间件类路径，其值是中间件顺序
+```python
+DOWNLOADER_MIDDLEWARES = {
+    "myproject.middlewares.CustomDownloaderMiddleware": 543,
+}
+```
+#### 随机User-Agent
+```python
+# middlewares.py 示例：随机User-Agent中间件
+from fake_useragent import UserAgent
+
+class RandomUserAgentMiddleware:
+    def process_request(self, request, spider):
+        request.headers['User-Agent'] = UserAgent().random
+
+
+
 
